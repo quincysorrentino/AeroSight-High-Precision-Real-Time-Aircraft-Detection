@@ -16,16 +16,16 @@ This project emphasizes:
 ## Gallery
 <table width="100%">
   <tr>
-    <td width="50%">
-      <img src="https://github.com/user-attachments/assets/5f3cc43c-241e-4e0d-aece-9767d861a342" alt="Image 1" style="width:100%;">
+    <td width="50%" align="center">
+      <img src="https://github.com/user-attachments/assets/f2a327a5-9985-4f36-bea2-8c049e3a3b0c" style="width:100%;" />
     </td>
-    <td width="50%">
-      <img src="https://github.com/user-attachments/assets/50672d5c-40d7-4d3b-bda9-e308443eaaeb" alt="Screenshot 2025-12-25 222329" style="width:100%;">
+    <td width="50%" align="center">
+      <img src="https://github.com/user-attachments/assets/74d263eb-c3c0-409a-b415-4cadf4da8426" style="width:100%;" />
     </td>
   </tr>
 </table>
 
-https://github.com/user-attachments/assets/7aa35610-11c9-4060-a0f4-65407c4838d4
+https://github.com/user-attachments/assets/c0ad18a4-e137-4c91-844e-d4c6287891f4
 
 ## Tech Stack
 
