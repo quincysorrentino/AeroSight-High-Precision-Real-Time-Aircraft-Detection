@@ -91,8 +91,8 @@ std::vector<Detection> Detector::run(cv::Mat &frame)
             }
         }
 
-        // Only keep detections with high confidence (e.g., > 50%).
-        if (max_score > 0.50f)
+        // Keep lower-confidence detections to maintain tracks across class drops.
+        if (max_score > 0.25f)
         {
             float cx = rawOutput[0 * 8400 + i]; // Center X
             float cy = rawOutput[1 * 8400 + i]; // Center Y
@@ -111,7 +111,7 @@ std::vector<Detection> Detector::run(cv::Mat &frame)
     // NMS: If AI detects the same plane twice, only keep the best box.
     //
     std::vector<int> indices;
-    cv::dnn::NMSBoxes(boxes, confs, 0.4f, 0.5f, indices);
+    cv::dnn::NMSBoxes(boxes, confs, 0.2f, 0.45f, indices);
 
     std::vector<Detection> final_results;
     for (int idx : indices)

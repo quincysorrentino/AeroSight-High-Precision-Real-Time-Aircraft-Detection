@@ -16,7 +16,7 @@ find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS} ${ONNXRUNTIME_INCLUDE_DIRS})
 
 # Create the Executable
-add_executable(AeroTrack main.cpp detector.cpp tracker.cpp)
+add_executable(AeroTrack main.cpp detector.cpp)
 
 # Link the Libraries
 target_link_libraries(AeroTrack PRIVATE 
