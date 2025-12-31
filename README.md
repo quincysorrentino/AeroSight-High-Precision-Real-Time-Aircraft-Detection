@@ -45,7 +45,7 @@ Video showing the detector being turned off after three seconds, allowing KO-CV 
 | **PyTorch / Ultralytics** | Fine-tuning the YOLOv11n model and exporting trained weights            |
 | **Python**                | Dataset preprocessing, training orchestration, evaluation, and tooling  |
 
-## Deep Dive: The Perception Pipeline
+## Perception Pipeline
 
 #### Object Detection (YOLO11n)
 
