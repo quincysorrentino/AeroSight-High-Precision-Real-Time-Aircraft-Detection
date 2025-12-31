@@ -76,21 +76,19 @@ The core logic is implemented in C++ to ensure deterministic performance, mainti
 ├── AeroTrack/                          # C++ tracking and inference system
 │   ├── main.cpp                        # Video processing pipeline with persistent tracking
 │   ├── detector.cpp / detector.h       # ONNX Runtime + OpenCV YOLO wrapper
-│   ├── tracker.cpp / tracker.h         # Legacy Kalman filter (unused)
+│   ├── track.cpp / track.h             # Track management and state
+│   ├── kalman_filter.cpp / .h          # Kalman filter implementation
+│   ├── hungarian.cpp / hungarian.h     # Hungarian algorithm for assignment
+│   ├── utils.cpp / utils.h             # Helper functions (IOU, distance, NMS)
 │   ├── last.onnx                       # Trained YOLO11n model weights
 │   ├── CMakeLists.txt                  # Build configuration
-│   ├── test.mp4                        # Sample input video
-│   └── onnxruntime-win-x64-1.21.0/     # ONNX Runtime libraries (Windows)
-│
-├── military-aircraft-yolo/             # Training dataset
-│   ├── data.yaml                       # Dataset configuration
-│   ├── images/                         # Training/validation images
-│   └── labels/                         # YOLO format annotations
+│   ├── Dockerfile                      # Container image specification
+│   ├── docker-compose.yml              # Docker deployment config
+│   └── BUILD.md                        # Build instructions
 │
 ├── train_yolov11.ipynb                 # Model training notebook (Google Colab)
 ├── requirements.txt                    # Python dependencies for training
-├── docker-compose.yml                  # Docker deployment configuration
-└── Dockerfile                          # Container build specification
+└── README.md                           # This file
 ```
 
 ### Quickstart
