@@ -6,6 +6,34 @@ __pycache__/
 # C extensions
 *.so
 
+# C/C++ Build artifacts
+*.exe
+*.obj
+*.o
+*.a
+*.lib
+*.dll
+*.dylib
+AeroTrack/build/
+AeroTrack/*.sln
+AeroTrack/*.vcxproj
+AeroTrack/*.vcxproj.filters
+AeroTrack/*.vcxproj.user
+
+# Video files (large binary files)
+*.mp4
+*.avi
+*.mov
+*.mkv
+!AeroTrack/videos/test.mp4
+
+# ONNX Runtime (large library)
+AeroTrack/onnxruntime-*/
+
+# Model files (can be large)
+*.onnx
+!AeroTrack/last.onnx
+
 # Distribution / packaging
 .Python
 build/
@@ -231,9 +259,9 @@ Makefile
 *.cmake
 !CMakeLists.txt
 
-# Visual Studio
+# Visual Studio / IDE
 .vs/
-.vscode/tasks.json
+.vscode/
 *.vcxproj
 *.vcxproj.filters
 *.vcxproj.user
@@ -247,16 +275,41 @@ Release/
 x64/
 x86/
 
-# ONNX Runtime downloaded files
-AeroTrack/onnxruntime-win-x64-*/
-AeroTrack/*.zip
+# ONNX Runtime library (large)
+AeroTrack/onnxruntime-*/
+*.zip
+*.tar.gz
 
-# Model files (large)
+# Docker
+.dockerignore
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+venv/
+env/
+ENV/
+
+# Dataset files (large)
+military-aircraft-yolo/images/
+*.jpg
+*.jpeg
+*.png
+*.bmp
+!README*.png
+
+# Model files (keep only the main model)
 *.onnx
 *.pt
 *.pth
 *.weights
-AeroTrack/last.onnx
+!AeroTrack/last.onnx
 
 # Video and image test files
 *.mp4
@@ -270,6 +323,7 @@ AeroTrack/*.jpg
 
 # Output files
 output.mp4
+test.mp4
 AeroTrack/output.mp4
 
 # Datasets (large)
