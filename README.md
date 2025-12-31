@@ -1,9 +1,8 @@
 # AeroSight — High-Precision Real-Time Aircraft Detection
+A real-time aircraft detection and tracking system using YOLO11n and C++ for high-accuracy aerial perception.
 
 ## Overview
 Perception for aerial systems such as, collision avoidance, autonomous navigation, or airspace awareness, remains one of the most challenging domains in computer vision. I built **AeroSight** to deepen my practical experience in real-time object detection, tracking, and perception pipeline design.
-
-The goal was to design something that reflects how real perception stacks are built in industry: trained models, exported for deployment, integrated into real time C++ code, and paired with classical state estimation.
 
 My goal was to design a system that closely mirrored how perception systems are built in industry. Including model training, running real time inference with hardware limitations, and fusing the results with classical state estimation.
 
