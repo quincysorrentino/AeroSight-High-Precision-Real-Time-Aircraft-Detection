@@ -4,10 +4,19 @@ project(AeroTrack)
 # Set C++ Standard
 set(CMAKE_CXX_STANDARD 17)
 
-# ONNX Runtime paths
-set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/onnxruntime-win-x64-1.21.0")
+# ONNX Runtime paths - support both Windows and Linux
+if(NOT DEFINED ONNXRUNTIME_ROOT)
+    set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/onnxruntime-win-x64-1.21.0")
+endif()
+
 set(ONNXRUNTIME_INCLUDE_DIRS "${ONNXRUNTIME_ROOT}/include")
-set(ONNXRUNTIME_LIB "${ONNXRUNTIME_ROOT}/lib/onnxruntime.lib")
+
+# Platform-specific library paths
+if(WIN32)
+    set(ONNXRUNTIME_LIB "${ONNXRUNTIME_ROOT}/lib/onnxruntime.lib")
+else()
+    set(ONNXRUNTIME_LIB "${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so")
+endif()
 
 # Find Dependencies
 find_package(OpenCV REQUIRED)
@@ -16,7 +25,14 @@ find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS} ${ONNXRUNTIME_INCLUDE_DIRS})
 
 # Create the Executable
-add_executable(AeroTrack main.cpp detector.cpp tracker.cpp)
+add_executable(AeroTrack 
+    main.cpp 
+    detector.cpp 
+    kalman_filter.cpp
+    track.cpp
+    utils.cpp
+    hungarian.cpp
+)
 
 # Link the Libraries
 target_link_libraries(AeroTrack PRIVATE 

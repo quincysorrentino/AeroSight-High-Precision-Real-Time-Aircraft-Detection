@@ -1,17 +1,56 @@
 #include "detector.h"
+#include <iostream>
+
+namespace
+{
+    constexpr int INPUT_SIZE = 640;
+    constexpr int NUM_BOXES = 8400;
+    constexpr int NUM_CLASSES = 60;
+    constexpr float DETECTION_THRESHOLD = 0.25f;
+    constexpr float NMS_CONF_THRESHOLD = 0.2f;
+    constexpr float NMS_IOU_THRESHOLD = 0.45f;
+    constexpr int CHANNELS = 3;
+    constexpr float NORM_FACTOR = 1.0f / 255.0f;
+}
 
 Detector::Detector(const std::wstring &modelPath)
 {
     env = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "AeroLog");
     Ort::SessionOptions options;
 
-    // 1. Multi-threading: Use all available logical cores
+    // Try to use CUDA (GPU) if available, fall back to CPU
+    bool cudaAvailable = false;
+    try
+    {
+        std::vector<std::string> providers = Ort::GetAvailableProviders();
+        auto it = std::find(providers.begin(), providers.end(), "CUDAExecutionProvider");
+        if (it != providers.end())
+        {
+            OrtCUDAProviderOptions cuda_options{};
+            cuda_options.device_id = 0;
+            cuda_options.arena_extend_strategy = 0;
+            cuda_options.gpu_mem_limit = 2ULL * 1024 * 1024 * 1024; // 2GB
+            cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive;
+            cuda_options.do_copy_in_default_stream = 1;
+
+            options.AppendExecutionProvider_CUDA(cuda_options);
+            cudaAvailable = true;
+            std::cout << "Using CUDA GPU acceleration" << std::endl;
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cout << "CUDA initialization failed: " << e.what() << std::endl;
+    }
+
+    if (!cudaAvailable)
+    {
+        std::cout << "Using CPU inference" << std::endl;
+    }
+
+    // Multi-threading for CPU fallback
     options.SetIntraOpNumThreads(std::thread::hardware_concurrency());
-
-    // 2. Optimization Level: Enable all hardware-specific math optimizations
     options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-
-    // 3. Execution Mode: Sequential is usually faster for single-model CPU inference
     options.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
 
     session = Ort::Session(env, modelPath.c_str(), options);
@@ -19,71 +58,73 @@ Detector::Detector(const std::wstring &modelPath)
 
 std::vector<Detection> Detector::run(cv::Mat &frame)
 {
-    // Pre-process
-    // add padding to images for 640x640 input size
+    // Pre-process: resize and pad to INPUT_SIZE x INPUT_SIZE
+    const float scale = std::min(static_cast<float>(INPUT_SIZE) / frame.cols,
+                                 static_cast<float>(INPUT_SIZE) / frame.rows);
+    const float inv_scale = 1.0f / scale;
+    const int nw = static_cast<int>(frame.cols * scale);
+    const int nh = static_cast<int>(frame.rows * scale);
 
-    float scale = std::min(640.0f / frame.cols, 640.0f / frame.rows);
-    int nw = frame.cols * scale;
-    int nh = frame.rows * scale;
     cv::Mat resized;
     cv::resize(frame, resized, cv::Size(nw, nh));
 
-    // create 640x640 canvas to paste image onto
-    cv::Mat canvas(640, 640, CV_8UC3, cv::Scalar(114, 114, 114));
+    // Create canvas and convert BGR to RGB
+    cv::Mat canvas(INPUT_SIZE, INPUT_SIZE, CV_8UC3, cv::Scalar(114, 114, 114));
     resized.copyTo(canvas(cv::Rect(0, 0, nw, nh)));
-
-    // convert bgr (cv) to rgb (yolo)
     cv::cvtColor(canvas, canvas, cv::COLOR_BGR2RGB);
 
-    // convert hwc to chw - OPTIMIZED with pointer access
-    std::vector<float> inputTensorValues(3 * 640 * 640);
+    // Convert HWC to CHW format with normalization
+    constexpr int TENSOR_SIZE = CHANNELS * INPUT_SIZE * INPUT_SIZE;
+    std::vector<float> inputTensorValues(TENSOR_SIZE);
 
     // Use pointer access for 3-5x speedup over .at<>()
-    const int stride = 640;
-    for (int h = 0; h < 640; ++h)
+    constexpr int AREA = INPUT_SIZE * INPUT_SIZE;
+    for (int h = 0; h < INPUT_SIZE; ++h)
     {
         const uchar *row_ptr = canvas.ptr<uchar>(h);
-        for (int w = 0; w < 640; ++w)
+        const int row_offset = h * INPUT_SIZE;
+        for (int w = 0; w < INPUT_SIZE; ++w)
         {
-            int pixel_idx = w * 3;
-            // BGR -> RGB and normalize in one pass
-            inputTensorValues[0 * 640 * 640 + h * 640 + w] = row_ptr[pixel_idx + 0] / 255.0f; // R
-            inputTensorValues[1 * 640 * 640 + h * 640 + w] = row_ptr[pixel_idx + 1] / 255.0f; // G
-            inputTensorValues[2 * 640 * 640 + h * 640 + w] = row_ptr[pixel_idx + 2] / 255.0f; // B
+            const int pixel_idx = w * CHANNELS;
+            const int idx = row_offset + w;
+            inputTensorValues[idx] = row_ptr[pixel_idx] * NORM_FACTOR;                // R
+            inputTensorValues[AREA + idx] = row_ptr[pixel_idx + 1] * NORM_FACTOR;     // G
+            inputTensorValues[2 * AREA + idx] = row_ptr[pixel_idx + 2] * NORM_FACTOR; // B
         }
     }
 
-    // Inference
-    auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-    std::array<int64_t, 4> inputShape = {1, 3, 640, 640};
+    // Run inference
+    const auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    constexpr std::array<int64_t, 4> inputShape = {1, CHANNELS, INPUT_SIZE, INPUT_SIZE};
 
-    // convert vector into tensor
     Ort::Value inputTensor = Ort::Value::CreateTensor<float>(
         memory_info, inputTensorValues.data(), inputTensorValues.size(),
         inputShape.data(), inputShape.size());
 
-    const char *inputNames[] = {"images"};
-    const char *outputNames[] = {"output0"};
+    constexpr const char *inputNames[] = {"images"};
+    constexpr const char *outputNames[] = {"output0"};
 
-    // outputs 8,400 boxes
     auto outputTensors = session.Run(Ort::RunOptions{nullptr}, inputNames, &inputTensor, 1, outputNames, 1);
-    float *rawOutput = outputTensors[0].GetTensorMutableData<float>();
+    const float *rawOutput = outputTensors[0].GetTensorMutableData<float>();
 
-    // Post-process
+    // Post-process: extract boxes, scores, and class IDs
     std::vector<cv::Rect> boxes;
     std::vector<float> confs;
     std::vector<int> classIds;
+    boxes.reserve(NUM_BOXES / 10); // Reserve for ~10% detection rate
+    confs.reserve(NUM_BOXES / 10);
+    classIds.reserve(NUM_BOXES / 10);
 
-    for (int i = 0; i < 8400; ++i)
+    for (int i = 0; i < NUM_BOXES; ++i)
     {
-        float *classes_scores = rawOutput + 4 * 8400 + i;
-        float max_score = 0;
-        int class_id = 0;
+        const float *classes_scores = rawOutput + 4 * NUM_BOXES + i;
 
-        // Find which plane type has the highest score for this box.
-        for (int cls = 0; cls < 60; cls++)
+        // Find class with highest score
+        float max_score = 0.0f;
+        int class_id = 0;
+        for (int cls = 0; cls < NUM_CLASSES; ++cls)
         {
-            float score = *(classes_scores + cls * 8400);
+            const float score = classes_scores[cls * NUM_BOXES];
             if (score > max_score)
             {
                 max_score = score;
@@ -91,30 +132,34 @@ std::vector<Detection> Detector::run(cv::Mat &frame)
             }
         }
 
-        // Keep lower-confidence detections to maintain tracks across class drops.
-        if (max_score > 0.25f)
+        if (max_score > DETECTION_THRESHOLD)
         {
-            float cx = rawOutput[0 * 8400 + i]; // Center X
-            float cy = rawOutput[1 * 8400 + i]; // Center Y
-            float w = rawOutput[2 * 8400 + i];  // Width
-            float h = rawOutput[3 * 8400 + i];  // Height
+            const float cx = rawOutput[i];                // Center X
+            const float cy = rawOutput[NUM_BOXES + i];    // Center Y
+            const float w = rawOutput[2 * NUM_BOXES + i]; // Width
+            const float h = rawOutput[3 * NUM_BOXES + i]; // Height
 
-            // Convert YOLO coordinates back to original pixel coordinates.
-            int left = (cx - w / 2) / scale;
-            int top = (cy - h / 2) / scale;
-            boxes.push_back(cv::Rect(left, top, w / scale, h / scale));
+            // Convert YOLO coordinates back to original frame coordinates
+            const float half_w = w * 0.5f;
+            const float half_h = h * 0.5f;
+            const int left = static_cast<int>((cx - half_w) * inv_scale);
+            const int top = static_cast<int>((cy - half_h) * inv_scale);
+            const int width = static_cast<int>(w * inv_scale);
+            const int height = static_cast<int>(h * inv_scale);
+
+            boxes.emplace_back(left, top, width, height);
             confs.push_back(max_score);
             classIds.push_back(class_id);
         }
     }
 
-    // NMS: If AI detects the same plane twice, only keep the best box.
-    //
+    // Apply Non-Maximum Suppression to remove duplicate detections
     std::vector<int> indices;
-    cv::dnn::NMSBoxes(boxes, confs, 0.2f, 0.45f, indices);
+    cv::dnn::NMSBoxes(boxes, confs, NMS_CONF_THRESHOLD, NMS_IOU_THRESHOLD, indices);
 
     std::vector<Detection> final_results;
-    for (int idx : indices)
+    final_results.reserve(indices.size());
+    for (const int idx : indices)
     {
         final_results.push_back({boxes[idx], confs[idx], classIds[idx]});
     }
