@@ -44,7 +44,7 @@ Video showing the detector being turned off after three seconds, allowing KO-CV 
 
 ## Deep Dive: The Perception Pipeline
 
-#### Object Detection (YOLO11)
+#### Object Detection (YOLO11n)
 
 The system utilizes a finetuned **YOLO11n** model, trained (using an Nvidia A100 GPU instance through Google Colab) on a specialized military aircraft dataset from Kaggle.
 - **Preprocessing:** Frames are resized to $640 \times 640$ using **letterboxing** to preserve aspect ratios, followed by channel-swapping (BGR to RGB) and pixel normalization.
